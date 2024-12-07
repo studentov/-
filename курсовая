@@ -1,0 +1,669 @@
+import tkinter as tk
+from tkinter import messagebox
+import sqlite3
+import hashlib
+from datetime import datetime, timedelta
+
+def create_database():
+    conn = sqlite3.connect('fitness_app.db')
+    c = conn.cursor()
+
+    c.execute('''CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email TEXT NOT NULL UNIQUE,
+        password TEXT NOT NULL,
+        name TEXT NOT NULL,
+        age INTEGER,
+        gender TEXT,
+        weight REAL,
+        height REAL,
+        activity_level TEXT,
+        goal TEXT,
+        training_goals TEXT,
+        role TEXT DEFAULT 'user'
+    )''')
+
+    c.execute('''CREATE TABLE IF NOT EXISTS workouts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        date TEXT,
+        workout_type TEXT,
+        duration INTEGER,
+        calories_burned INTEGER,
+        FOREIGN KEY(user_id) REFERENCES users(id)
+    )''')
+
+    c.execute('''CREATE TABLE IF NOT EXISTS food_intake (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        date TEXT,
+        food_name TEXT,
+        calories INTEGER,
+        FOREIGN KEY(user_id) REFERENCES users(id)
+    )''')
+
+    c.execute('''
+    CREATE TABLE IF NOT EXISTS subscriptions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        start_date TEXT,
+        end_date TEXT,
+        renewal_date TEXT,
+        duration INTEGER,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+    ''')
+
+    c.execute('''CREATE TABLE IF NOT EXISTS subscriptions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        renewal_date TEXT,
+        duration INTEGER,
+        FOREIGN KEY(user_id) REFERENCES users(id)
+    )''')
+
+    conn.commit()
+    conn.close()
+
+def register():
+    def save_user():
+        email = entry_email.get()
+        password = entry_password.get()
+        password_confirm = entry_password_confirm.get()
+        name = entry_name.get()
+        age = entry_age.get()
+        gender = entry_gender.get()
+        weight = entry_weight.get()
+        height = entry_height.get()
+        activity_level = entry_activity_level.get()
+        goal = entry_goal.get()
+        training_goals = entry_training_goals.get()
+
+        if not email or not password or not name:
+            messagebox.showerror("Ошибка", "Пожалуйста, заполните все обязательные поля.")
+            return
+
+        if not age.isdigit() or not (13 < int(age) < 101):
+            messagebox.showerror("Ошибка", "Возраст должен быть числом от 18 до 100.")
+            return
+
+        if not weight.replace('.', '', 1).isdigit():
+            messagebox.showerror("Ошибка", "Вес должен быть числом.")
+            return
+
+        if not height.isdigit() or not (99 < int(height) < 252):
+            messagebox.showerror("Ошибка", "Рост должен быть числом от 1 до 299(см)")
+            return
+
+        if password != password_confirm:
+            messagebox.showerror("Ошибка", "Пароли не совпадают.")
+            return
+
+        hashed_password = hashlib.sha256(password.encode()).hexdigest()
+
+        conn = sqlite3.connect('fitness_app.db')
+        c = conn.cursor()
+        c.execute("SELECT * FROM users WHERE email=?", (email,))
+        if c.fetchone():
+            messagebox.showerror("Ошибка", "Пользователь с таким email уже существует.")
+            conn.close()
+            return
+
+        c.execute('''INSERT INTO users (email, password, name, age, gender, weight, height, activity_level, goal, training_goals) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                     (email, hashed_password, name, int(age), gender, float(weight), int(height), activity_level, goal, training_goals))
+        conn.commit()
+        conn.close()
+
+        messagebox.showinfo("Успех", "Регистрация прошла успешно! Вы можете войти.")
+        register_window.destroy()
+
+    register_window = tk.Tk()
+    register_window.title("Регистрация")
+
+    label_email = tk.Label(register_window, text="Email:")
+    label_email.grid(row=0, column=0)
+    entry_email = tk.Entry(register_window)
+    entry_email.grid(row=0, column=1)
+
+    label_password = tk.Label(register_window, text="Пароль:")
+    label_password.grid(row=1, column=0)
+    entry_password = tk.Entry(register_window, show="*")
+    entry_password.grid(row=1, column=1)
+
+    label_password_confirm = tk.Label(register_window, text="Подтвердите пароль:")
+    label_password_confirm.grid(row=2, column=0)
+    entry_password_confirm = tk.Entry(register_window, show="*")
+    entry_password_confirm.grid(row=2, column=1)
+
+    label_name = tk.Label(register_window, text="Имя:")
+    label_name.grid(row=3, column=0)
+    entry_name = tk.Entry(register_window)
+    entry_name.grid(row=3, column=1)
+
+    label_age = tk.Label(register_window, text="Возраст:")
+    label_age.grid(row=4, column=0)
+    entry_age = tk.Entry(register_window)
+    entry_age.grid(row=4, column=1)
+
+    label_gender = tk.Label(register_window, text="Пол:")
+    label_gender.grid(row=5, column=0)
+    entry_gender = tk.Entry(register_window)
+    entry_gender.grid(row=5, column=1)
+
+    label_weight = tk.Label(register_window, text="Вес (кг):")
+    label_weight.grid(row=6, column=0)
+    entry_weight = tk.Entry(register_window)
+    entry_weight.grid(row=6, column=1)
+
+    label_height = tk.Label(register_window, text="Рост (см):")
+    label_height.grid(row=7, column=0)
+    entry_height = tk.Entry(register_window)
+    entry_height.grid(row=7, column=1)
+
+    label_activity_level = tk.Label(register_window, text="Уровень активности:")
+    label_activity_level.grid(row=8, column=0)
+    entry_activity_level = tk.Entry(register_window)
+    entry_activity_level.grid(row=8, column=1)
+
+    label_goal = tk.Label(register_window, text="Цель:")
+    label_goal.grid(row=9, column=0)
+    entry_goal = tk.Entry(register_window)
+    entry_goal.grid(row=9, column=1)
+
+    label_training_goals = tk.Label(register_window, text="Цели тренировки:")
+    label_training_goals.grid(row=10, column=0)
+    entry_training_goals = tk.Entry(register_window)
+    entry_training_goals.grid(row=10, column=1)
+
+    button_register = tk.Button(register_window, text="Зарегистрироваться", command=save_user)
+    button_register.grid(row=11, column=0, columnspan=2)
+
+    register_window.mainloop()
+
+def login():
+    def authenticate():
+        email = entry_email.get()
+        password = entry_password.get()
+
+        if not email or not password:
+            messagebox.showerror("Ошибка", "Пожалуйста, введите email и пароль.")
+            return
+
+        hashed_password = hashlib.sha256(password.encode()).hexdigest()
+
+        conn = sqlite3.connect('fitness_app.db')
+        c = conn.cursor()
+        c.execute("SELECT * FROM users WHERE email=? AND password=?", (email, hashed_password))
+        user = c.fetchone()
+        conn.close()
+
+        if user:
+            messagebox.showinfo("Успех", "Вход успешен!")
+            user_id = user[0]
+            user_name = user[3]
+            user_role = user[10]
+            main_menu(user_id, user_name, user_role)
+        else:
+            messagebox.showerror("Ошибка", "Неверный email или пароль.")
+
+    login_window = tk.Tk()
+    login_window.title("Вход")
+
+    label_email = tk.Label(login_window, text="Email:")
+    label_email.pack(pady=10)
+    entry_email = tk.Entry(login_window)
+    entry_email.pack(pady=10)
+
+    label_password = tk.Label(login_window, text="Пароль:")
+    label_password.pack(pady=10)
+    entry_password = tk.Entry(login_window, show="*")
+    entry_password.pack(pady=10)
+
+    button_login = tk.Button(login_window, text="Войти", command=authenticate)
+    button_login.pack(pady=20)
+
+    button_register = tk.Button(login_window, text="Зарегистрироваться", command=register)
+    button_register.pack(pady=10)
+
+    login_window.mainloop()
+
+def manage_subscription(user_id):
+    subscription_window = tk.Toplevel()
+    subscription_window.title("Управление подпиской")
+
+    conn = sqlite3.connect('fitness_app.db')
+    c = conn.cursor()
+    c.execute("SELECT start_date, end_date, renewal_date, duration FROM subscriptions WHERE user_id=?", (user_id,))
+    subscription = c.fetchone()
+    conn.close()
+
+    button_extend = tk.Button(subscription_window, text="Продлить абонемент", command=lambda: extend_subscription(user_id))
+    button_extend.pack(pady=5)
+
+    button_close = tk.Button(subscription_window, text="Закрыть", command=subscription_window.destroy)
+    button_close.pack(pady=5)
+
+def show_workouts(user_id):
+    workouts_window = tk.Tk()
+    workouts_window.title("Ваши тренировки")
+
+    conn = sqlite3.connect('fitness_app.db')
+    c = conn.cursor()
+    c.execute("SELECT date, workout_type, duration FROM workouts WHERE user_id=?", (user_id,))
+    workouts = c.fetchall()
+    conn.close()
+
+    if not workouts:
+        label_no_workouts = tk.Label(workouts_window, text="Нет записанных тренировок.")
+        label_no_workouts.pack(pady=10)
+    else:
+        for workout in workouts:
+            date, workout_type, duration = workout
+            calories_burned = duration * 10
+
+            workout_info = f"Дата: {date}, Тип: {workout_type}, Продолжительность: {duration} мин, Потрачено калорий: {calories_burned}"
+
+            label_workout = tk.Label(workouts_window, text=workout_info)
+            label_workout.pack(pady=5)
+
+    button_close = tk.Button(workouts_window, text="Закрыть", command=workouts_window.destroy)
+    button_close.pack(pady=20)
+
+    workouts_window.grab_set()
+    workouts_window.wait_window()
+
+
+
+def delete_workout(user_id):
+    def perform_deletion():
+        workout_date = entry_date.get()
+        workout_type = entry_type.get()
+
+        if not workout_date or not workout_type:
+            messagebox.showerror("Ошибка", "Введите дату и тип тренировки.")
+            return
+
+        conn = sqlite3.connect('fitness_app.db')
+        c = conn.cursor()
+        c.execute("DELETE FROM workouts WHERE user_id=? AND date=? AND workout_type=?",
+                  (user_id, workout_date, workout_type))
+        conn.commit()
+        conn.close()
+
+        messagebox.showinfo("Успех", "Тренировка удалена!")
+        delete_window.destroy()
+
+    delete_window = tk.Tk()
+    delete_window.title("Удалить тренировку")
+
+    label_date = tk.Label(delete_window, text="Дата тренировки (YYYY-MM-DD):")
+    label_date.pack(pady=5)
+    entry_date = tk.Entry(delete_window)
+    entry_date.pack(pady=5)
+
+    label_type = tk.Label(delete_window, text="Тип тренировки:")
+    label_type.pack(pady=5)
+    entry_type = tk.Entry(delete_window)
+    entry_type.pack(pady=5)
+
+    button_delete = tk.Button(delete_window, text="Удалить", command=perform_deletion)
+    button_delete.pack(pady=10)
+
+    delete_window.mainloop()
+
+def add_calories_column():
+    conn = sqlite3.connect('fitness_app.db')
+    c = conn.cursor()
+
+    c.execute("PRAGMA table_info(workouts)")
+    columns = [column[1] for column in c.fetchall()]
+
+    if "calories" not in columns:
+        c.execute("ALTER TABLE workouts ADD COLUMN calories INTEGER")
+        conn.commit()
+
+    conn.close()
+
+def show_statistics(user_id):
+    stats_window = tk.Tk()
+    stats_window.title("Ваша статистика")
+
+    conn = sqlite3.connect('fitness_app.db')
+    c = conn.cursor()
+    c.execute("SELECT SUM(calories) FROM workouts WHERE user_id=?", (user_id,))
+    total_calories_burned = c.fetchone()[0] or 0  # Если данных нет, то 0
+
+    c.execute("SELECT SUM(calories) FROM food_intake WHERE user_id=?", (user_id,))
+    total_calories_intake = c.fetchone()[0] or 0  # Если данных нет, то 0
+
+    conn.close()
+
+    label_stats = tk.Label(stats_window, text=f"Общее количество сожжённых калорий: {total_calories_burned}\n"
+                                              f"Общее количество потребленных калорий: {total_calories_intake}", font=("Arial", 12))
+    label_stats.pack(pady=20)
+
+    button_close = tk.Button(stats_window, text="Закрыть", command=stats_window.destroy)
+    button_close.pack(pady=10)
+
+    stats_window.mainloop()
+
+def update_user_info(user_id):
+    def save_changes():
+        new_weight = entry_weight.get()
+        new_height = entry_height.get()
+        new_goal = entry_goal.get()
+        new_activity_level = entry_activity_level.get()
+
+        if not new_weight or not new_height or not new_goal or not new_activity_level:
+            messagebox.showerror("Ошибка", "Заполните все поля для обновления.")
+            return
+
+        conn = sqlite3.connect('fitness_app.db')
+        c = conn.cursor()
+        c.execute('''UPDATE users SET weight=?, height=?, goal=?, activity_level=? WHERE id=?''',
+                  (new_weight, new_height, new_goal, new_activity_level, user_id))
+        conn.commit()
+        conn.close()
+
+        messagebox.showinfo("Успех", "Информация обновлена!")
+        update_window.destroy()
+
+    update_window = tk.Tk()
+    update_window.title("Обновить информацию")
+
+    label_weight = tk.Label(update_window, text="Новый вес (кг):")
+    label_weight.grid(row=0, column=0)
+    entry_weight = tk.Entry(update_window)
+    entry_weight.grid(row=0, column=1)
+
+    label_height = tk.Label(update_window, text="Новый рост (см):")
+    label_height.grid(row=1, column=0)
+    entry_height = tk.Entry(update_window)
+    entry_height.grid(row=1, column=1)
+
+    label_goal = tk.Label(update_window, text="Новая цель:")
+    label_goal.grid(row=2, column=0)
+    entry_goal = tk.Entry(update_window)
+    entry_goal.grid(row=2, column=1)
+
+    label_activity_level = tk.Label(update_window, text="Новый уровень активности:")
+    label_activity_level.grid(row=3, column=0)
+    entry_activity_level = tk.Entry(update_window)
+    entry_activity_level.grid(row=3, column=1)
+
+    button_save = tk.Button(update_window, text="Сохранить изменения", command=save_changes)
+    button_save.grid(row=4, column=0, columnspan=2)
+
+    button_cancel = tk.Button(update_window, text="Отменить", command=update_window.destroy)
+    button_cancel.grid(row=5, column=0, columnspan=2)
+
+    update_window.mainloop()
+
+def show_subscription_history(user_id):
+    subscription_window = tk.Tk()
+    subscription_window.title("История подписок")
+
+    conn = sqlite3.connect('fitness_app.db')
+    c = conn.cursor()
+    c.execute("SELECT start_date, end_date, renewal_date, duration FROM subscriptions WHERE user_id=?", (user_id,))
+    subscriptions = c.fetchall()
+    conn.close()
+
+    if not subscriptions:
+        label_no_subscription = tk.Label(subscription_window, text="Нет подписок.")
+        label_no_subscription.pack(pady=10)
+    else:
+        for start_date, end_date, renewal_date, duration in subscriptions:
+            subscription_info = f"Дата начала: {start_date}, Дата окончания: {end_date}, Дата продления: {renewal_date}, Продолжительность: {duration} дней"
+            label_subscription = tk.Label(subscription_window, text=subscription_info)
+            label_subscription.pack(pady=5)
+
+    button_close = tk.Button(subscription_window, text="Закрыть", command=subscription_window.destroy)
+    button_close.pack(pady=20)
+
+    subscription_window.mainloop()
+
+def show_subscription(user_id):
+
+    subscription_window = tk.Toplevel()
+    subscription_window.title("Текущий абонемент")
+
+    conn = sqlite3.connect('fitness_app.db')
+    c = conn.cursor()
+    c.execute("SELECT end_date FROM subscriptions WHERE user_id=?", (user_id,))
+    subscription = c.fetchone()
+    conn.close()
+
+    if subscription:
+        end_date = subscription[0]
+        label_subscription_info = tk.Label(subscription_window, text=f"Текущий абонемент истекает: {end_date}")
+        label_subscription_info.pack(pady=10)
+    else:
+        label_no_subscription = tk.Label(subscription_window, text="Нет активного абонемента.")
+        label_no_subscription.pack(pady=10)
+
+    button_close = tk.Button(subscription_window, text="Закрыть", command=subscription_window.destroy)
+    button_close.pack(pady=20)
+
+
+def extend_subscription(user_id):
+    extend_window = tk.Toplevel()
+    extend_window.title("Продлить абонемент")
+
+    def save_extension():
+
+        conn = sqlite3.connect('fitness_app.db')
+        c = conn.cursor()
+
+        c.execute("SELECT end_date FROM subscriptions WHERE user_id=?", (user_id,))
+        subscription = c.fetchone()
+
+        if subscription is None:
+            messagebox.showerror("Ошибка", "Нет активного абонемента для продления.")
+            conn.close()
+            extend_window.destroy()
+            return
+
+        end_date = subscription[0]
+        try:
+            end_date_obj = datetime.strptime(end_date, "%Y-%m-%d")
+            new_end_date = end_date_obj + timedelta(days=30)
+            c.execute("UPDATE subscriptions SET end_date=? WHERE user_id=?",
+                      (new_end_date.strftime("%Y-%m-%d"), user_id))
+            conn.commit()
+            conn.close()
+
+            messagebox.showinfo("Успех", f"Абонемент продлен до {new_end_date.strftime('%Y-%m-%d')}")
+            extend_window.destroy()
+        except ValueError:
+            messagebox.showerror("Ошибка", "Невозможно обработать дату абонемента.")
+            conn.close()
+            extend_window.destroy()
+
+    button_extend = tk.Button(extend_window, text="Продлить абонемент на 30 дней", command=save_extension)
+    button_extend.pack(pady=20)
+
+    button_cancel = tk.Button(extend_window, text="Отменить", command=extend_window.destroy)
+    button_cancel.pack(pady=10)
+
+
+def main_menu(user_id, user_name, user_role):
+    menu_window = tk.Tk()
+    menu_window.title(f"Добро пожаловать, {user_name}!")
+
+    label_welcome = tk.Label(menu_window, text=f"Добро пожаловать, {user_name}!", font=("Arial", 16))
+    label_welcome.pack(pady=20)
+
+    button_add_workout = tk.Button(menu_window, text="Добавить тренировку", command=lambda: add_workout(user_id))
+    button_add_workout.pack(pady=10)
+
+    button_show_workouts = tk.Button(menu_window, text="Показать тренировки", command=lambda: show_workouts(user_id))
+    button_show_workouts.pack(pady=10)
+
+    button_log_food = tk.Button(menu_window, text="Добавить питание", command=lambda: log_food_intake(user_id))
+    button_log_food.pack(pady=10)
+
+    button_show_calories = tk.Button(menu_window, text="Показать калории за день", command=lambda: show_daily_calories(user_id))
+    button_show_calories.pack(pady=10)
+
+    button_statistics = tk.Button(menu_window, text="Посмотреть статистику", command=lambda: show_statistics(user_id))
+    button_statistics.pack(pady=10)
+
+    button_update_info = tk.Button(menu_window, text="Обновить информацию", command=lambda: update_user_info(user_id))
+    button_update_info.pack(pady=10)
+
+    button_subscription = tk.Button(menu_window, text="Абонемент", command=lambda: show_subscription(user_id))
+    button_subscription.pack(pady=10)
+
+    button_extend_subscription = tk.Button(menu_window, text="Продлить абонемент", command=lambda: extend_subscription(user_id))
+    button_extend_subscription.pack(pady=10)
+
+    button_logout = tk.Button(menu_window, text="Выйти", command=menu_window.quit)
+    button_logout.pack(pady=10)
+
+    menu_window.mainloop()
+
+def add_workout(user_id):
+    add_calories_column()
+
+    add_workout_window = tk.Tk()
+    add_workout_window.title("Добавить тренировку")
+
+    # Метки и поля ввода
+    label_date = tk.Label(add_workout_window, text="Дата (YYYY-MM-DD):")
+    label_date.pack(pady=5)
+    entry_date = tk.Entry(add_workout_window)
+    entry_date.pack(pady=5)
+
+    label_type = tk.Label(add_workout_window, text="Тип тренировки:")
+    label_type.pack(pady=5)
+    entry_type = tk.Entry(add_workout_window)
+    entry_type.pack(pady=5)
+
+    label_duration = tk.Label(add_workout_window, text="Продолжительность (мин):")
+    label_duration.pack(pady=5)
+    entry_duration = tk.Entry(add_workout_window)
+    entry_duration.pack(pady=5)
+
+    def save_workout():
+        date = entry_date.get()
+        workout_type = entry_type.get()
+        duration = entry_duration.get()
+
+        if not date or not workout_type or not duration:
+            error_label.config(text="Заполните все поля!")
+            return
+
+        try:
+            duration = int(duration)
+            calories = duration * 10
+        except ValueError:
+            error_label.config(text="Продолжительность должна быть числом.")
+            return
+
+        conn = sqlite3.connect('fitness_app.db')
+        c = conn.cursor()
+        c.execute("INSERT INTO workouts (user_id, date, workout_type, duration, calories) VALUES (?, ?, ?, ?, ?)",
+                  (user_id, date, workout_type, duration, calories))
+        conn.commit()
+        conn.close()
+
+        add_workout_window.destroy()
+
+    button_save = tk.Button(add_workout_window, text="Сохранить тренировку", command=save_workout)
+    button_save.pack(pady=10)
+
+    error_label = tk.Label(add_workout_window, text="", fg="red")
+    error_label.pack(pady=5)
+
+    button_cancel = tk.Button(add_workout_window, text="Отменить", command=add_workout_window.destroy)
+    button_cancel.pack(pady=5)
+
+    add_workout_window.mainloop()
+
+def log_food_intake(user_id):
+    def save_food():
+        food_name = entry_food_name.get()
+        calories = entry_calories.get()
+        food_date = entry_date.get()
+
+        if not food_name or not calories or not food_date:
+            messagebox.showerror("Ошибка", "Пожалуйста, заполните все поля.")
+            return
+
+        conn = sqlite3.connect('fitness_app.db')
+        c = conn.cursor()
+        c.execute('''INSERT INTO food_intake (user_id, date, food_name, calories) 
+                     VALUES (?, ?, ?, ?)''',
+                  (user_id, food_date, food_name, int(calories)))
+        conn.commit()
+        conn.close()
+
+        messagebox.showinfo("Успех", "Пища сохранена!")
+        food_window.destroy()
+
+    food_window = tk.Tk()
+    food_window.title("Добавить питание")
+
+    label_date = tk.Label(food_window, text="Дата (YYYY-MM-DD):")
+    label_date.grid(row=0, column=0)
+    entry_date = tk.Entry(food_window)
+    entry_date.grid(row=0, column=1)
+
+    label_food_name = tk.Label(food_window, text="Название пищи:")
+    label_food_name.grid(row=1, column=0)
+    entry_food_name = tk.Entry(food_window)
+    entry_food_name.grid(row=1, column=1)
+
+    label_calories = tk.Label(food_window, text="Калории:")
+    label_calories.grid(row=2, column=0)
+    entry_calories = tk.Entry(food_window)
+    entry_calories.grid(row=2, column=1)
+
+    button_save_food = tk.Button(food_window, text="Сохранить", command=save_food)
+    button_save_food.grid(row=3, column=0, columnspan=2)
+
+    food_window.mainloop()
+
+def show_daily_calories(user_id):
+    def get_calories_by_date():
+        date = entry_date.get()
+
+        if not date:
+            messagebox.showerror("Ошибка", "Пожалуйста, введите дату.")
+            return
+
+        conn = sqlite3.connect('fitness_app.db')
+        c = conn.cursor()
+        c.execute("SELECT SUM(calories) FROM food_intake WHERE user_id=? AND date=?", (user_id, date))
+        total_calories = c.fetchone()[0]
+        conn.close()
+
+        if total_calories is None:
+            total_calories = 0
+
+        calorie_window = tk.Tk()
+        calorie_window.title(f"Потребление калорий за {date}")
+
+        label_calories = tk.Label(calorie_window, text=f"Общее количество калорий за день: {total_calories}")
+        label_calories.pack()
+
+        calorie_window.mainloop()
+
+    calorie_window = tk.Tk()
+    calorie_window.title("Выберите дату для просмотра калорий")
+
+    label_date = tk.Label(calorie_window, text="Дата (YYYY-MM-DD):")
+    label_date.pack(pady=10)
+    entry_date = tk.Entry(calorie_window)
+    entry_date.pack(pady=10)
+
+    button_get_calories = tk.Button(calorie_window, text="Показать калории", command=get_calories_by_date)
+    button_get_calories.pack(pady=20)
+
+    calorie_window.mainloop()
+
+if __name__ == "__main__":
+    create_database()
+    login()
